@@ -15,7 +15,6 @@
 #include<sys/mman.h>
 
 #import <mach/mach_time.h>
-#import <MMKV.h>
 #import "MWSQLiteManager.h"
 
 
@@ -223,20 +222,41 @@ int MapFile( int fd, void ** outDataPtr, size_t mapSize , struct stat * stat)
 }
 
 - (IBAction)save {
+    NSString *mapFilePath = [self getMapfullPath];
+    NSString *filePath = [self getFilefullPath];
     
-    [[MMKV defaultMMKV] setObject:@"111" forKey:@"userid"];
     
-//    [[MMKV defaultMMKV] setObject:@{@"name": @"hehe"} forKey:@"userDic"];
+    NSDictionary *dic = @{@"wangwei": @"hahhah"};
+    
+    // 写入数据库的方法
+    NSLog(@"start");
+    CGFloat time1 = LogTimeBlock(^{
+        for (int i=0; i<5000; i++) {
+            [[MWSQLiteManager share] insertWithRequestDic:dic byUserId:@"wangwei"];
+        }
+    });
+    NSLog(@"File writeFile %@s", @(time1));
+    
+    
+    // 写入文件的方式
+    CGFloat time = LogTimeBlock(^{
+        for (int i=0; i<5000; i++) {
+            NSMutableString *string = [NSMutableString string];
+            [string appendString:[self dictionaryToJson:dic]];
+            [string appendString:FastKVSeperatorString];
+            int result = ProcessFile([mapFilePath UTF8String], [string UTF8String]);
+            if (result == 1) {
+                NSLog(@"发生错误啦");
+            }
+        }
+    });
+    NSLog(@"mapFile writeFile %@s", @(time));
+    NSLog(@"end");
 }
 
 
 - (IBAction)get {
     
-//    NSString *string = [[MMKV defaultMMKV] getObjectOfClass:[NSString class] forKey:@"userid"];
-//    NSLog(@"userid: %@",string);
-    
-//    NSString *dic = [[MMKV defaultMMKV] getObjectOfClass:[NSString class] forKey:@"userDic"];
-//    NSLog(@"userDic: %@",dic);
     CGFloat time = LogTimeBlock(^{
         NSArray *sqlArr = [[MWSQLiteManager share] queryRequestDicsWithUserId:@"wangwei"];
         NSLog(@"sqlArr: %ld", sqlArr.count);
@@ -296,7 +316,7 @@ int MapFile( int fd, void ** outDataPtr, size_t mapSize , struct stat * stat)
     
     self.fileManager = [NSFileManager new];
     
-    [self eventAction];
+    
 }
 
 CGFloat LogTimeBlock (void (^block)(void)) {
@@ -312,40 +332,6 @@ CGFloat LogTimeBlock (void (^block)(void)) {
     return (CGFloat)nanos / NSEC_PER_SEC;
 }
 
--  (void)eventAction {
-    
-    NSString *mapFilePath = [self getMapfullPath];
-    NSString *filePath = [self getFilefullPath];
-    
-    
-    NSDictionary *dic = @{@"wangwei": @"hahhah"};
-    
-    // 写入数据库的方法
-    NSLog(@"start");
-    CGFloat time1 = LogTimeBlock(^{
-        for (int i=0; i<5000; i++) {
-            [[MWSQLiteManager share] insertWithRequestDic:dic byUserId:@"wangwei"];
-        }
-    });
-    NSLog(@"File writeFile %@s", @(time1));
-
-    
-    // 写入文件的方式
-    CGFloat time = LogTimeBlock(^{
-        for (int i=0; i<5000; i++) {
-            NSMutableString *string = [NSMutableString string];
-            [string appendString:[self dictionaryToJson:dic]];
-            [string appendString:FastKVSeperatorString];
-            int result = ProcessFile([mapFilePath UTF8String], [string UTF8String]);
-            if (result == 1) {
-                NSLog(@"发生错误啦");
-            }
-        }
-    });
-    NSLog(@"mapFile writeFile %@s", @(time));
-    NSLog(@"end");
-}
-
 
 
 - (NSDictionary *)parseFromData:(NSData *)data {
@@ -353,13 +339,6 @@ CGFloat LogTimeBlock (void (^block)(void)) {
         return nil;
     }
     
-    // CRC check
-    //    uint16_t crc = [[data subdataWithRange:NSMakeRange(0, data.length-2)] fkv_crc16];
-    //    uint16_t crcInData;
-    //    [data getBytes:&crcInData range:NSMakeRange(data.length-2, 2)];
-    //    if (crc != crcInData) {
-    //        return nil;
-    //    }
     @try {
         
         NSString  *stringVal = [[NSString alloc] initWithBytes:[data bytes]
@@ -371,8 +350,6 @@ CGFloat LogTimeBlock (void (^block)(void)) {
     } @catch (NSException *e) {
         return nil;
     }
-    //     *dic = [NSKeyedUnarchiver unarchiveObjectWithData:];
-    //    return dic;
 }
 
 //字典转json格式字符串：
@@ -380,7 +357,6 @@ CGFloat LogTimeBlock (void (^block)(void)) {
 {
     NSError *parseError = nil;
     NSData *jsonData = [NSJSONSerialization dataWithJSONObject:dic options:NSJSONWritingPrettyPrinted error:&parseError];
-    
     return [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
 }
 
@@ -388,29 +364,12 @@ CGFloat LogTimeBlock (void (^block)(void)) {
 - (NSDictionary *)dictionaryWithJsonString:(NSString *)jsonString {
     
     if (jsonString == nil) {
-        
         return nil;
-        
     }
-    
     NSData *jsonData = [jsonString dataUsingEncoding:NSUTF8StringEncoding];
-    
     NSError *err;
-    
-    NSDictionary *dic = [NSJSONSerialization JSONObjectWithData:jsonData
-                         
-                                                        options:NSJSONReadingMutableContainers
-                         
-                                                          error:&err];
-    
-    if(err) {
-        
-        NSLog(@"json解析失败：%@",err);
-        
-        return nil;
-        
-    }
-    
+    NSDictionary *dic = [NSJSONSerialization JSONObjectWithData:jsonData options:NSJSONReadingMutableContainers error:&err];
+    if(err) { NSLog(@"json解析失败：%@",err);  return nil; }
     return dic;
     
 }
