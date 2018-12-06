@@ -13,30 +13,55 @@
 #include<fcntl.h>
 #include<unistd.h>
 #include<sys/mman.h>
-
 #import <mach/mach_time.h>
 #import "MWSQLiteManager.h"
 
 
 #define FastKVSeperatorString @"$FastKVSeperatorString$"
 
-// 映射文件到内存
+// MapFile 文件映射
+
+// Exit:    fd              代表文件
+//          outDataPtr      映射文件的起始位置
+//          mapSize         映射的size
+//          stat            文件信息
+//          return value    返回值为0时，代表映射文件成功
+//
 int MapFile( int fd , void ** outDataPtr, size_t mapSize , struct stat * stat);
-// 执行文件
+// ProcessFile  写操作
+
+// Exit:    inPathName      文件路径
+//          string          需要写入的字符串
+//          return value    返回值为0时，代表映射文件成功
+//
 int ProcessFile( char * inPathName , char * string);
-// 读取文件
+// ReadFile  读操作
+
+// Exit:    inPathName      文件路径
+//          outDataPtr      映射文件的起始位置
+//          mapSize         映射的size
+//          stat            文件信息
+//          return value    返回值为0时，代表映射文件成功
+//
 int ReadFile( char * inPathName , void ** outDataPtr, struct stat * stat);
 
 
+
+// ReadFile  读操作
+
+// Exit:    inPathName      文件路径
+//          outDataPtr      映射文件的起始位置
+//          mapSize         映射的size
+//          stat            文件信息
+//          return value    返回值为0时，代表映射文件成功
+//
 int ReadFile( char * inPathName , void ** outDataPtr, struct stat * stat)
 {
     size_t originLength;  // 原数据字节数
-    void * start;         //
     int fd;               // 文件
     int outError;         // 错误信息
     
     // 打开文件
-    // Open the file.
     fd = open( inPathName, O_RDWR | O_CREAT, 0 );
     
     if( fd < 0 )
@@ -63,34 +88,35 @@ int ReadFile( char * inPathName , void ** outDataPtr, struct stat * stat)
     // 文件映射成功
     if( result == 0 )
     {
-//        start = outDataPtr;
-        //        fsync(fd);
-        // 关闭映射，将修改同步到磁盘上，可能会出现延迟
-        //        munmap(start, mapsize);
-        
         // 关闭文件
 //        close( fd );
     }
     else
     {
         // 映射失败
-        NSLog(@"映射失败");
+        outError = errno;
+        return 1;
     }
     return 0;
 }
 
+// ProcessFile  写操作
+
+// Exit:    inPathName      文件路径
+//          string          需要写入的字符串
+//          return value    返回值为0时，代表映射文件成功
+//
 int ProcessFile( char * inPathName , char * string)
 {
     size_t originLength;  // 原数据字节数
     size_t dataLength;    // 数据字节数
-    void * dataPtr;       //
-    void * start;         //
+    void * dataPtr;       // 文件写入起始地址
+    void * start;         // 文件起始地址
     struct stat statInfo; // 文件状态
     int fd;               // 文件
     int outError;         // 错误信息
     
     // 打开文件
-    // Open the file.
     fd = open( inPathName, O_RDWR | O_CREAT, 0 );
     
     if( fd < 0 )
@@ -128,7 +154,6 @@ int ProcessFile( char * inPathName , char * string)
         //        fsync(fd);
         // 关闭映射，将修改同步到磁盘上，可能会出现延迟
         //        munmap(start, mapsize);
-        
         // 关闭文件
         close( fd );
     }
@@ -139,11 +164,13 @@ int ProcessFile( char * inPathName , char * string)
     }
     return 0;
 }
+
 // MapFile 文件映射
 
 // Exit:    fd              代表文件
 //          outDataPtr      映射文件的起始位置
 //          mapSize         映射的size
+//          stat            文件信息
 //          return value    返回值为0时，代表映射文件成功
 //
 int MapFile( int fd, void ** outDataPtr, size_t mapSize , struct stat * stat)
@@ -164,7 +191,6 @@ int MapFile( int fd, void ** outDataPtr, size_t mapSize , struct stat * stat)
                        fd,
                        0);
     
-//        NSLog(@"映射出的文本内容：%s", * outDataPtr);
     if( *outDataPtr == MAP_FAILED )
     {
         outError = errno;
